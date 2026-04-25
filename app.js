@@ -338,7 +338,7 @@ function onDuckClueUnlocked() {
 }
 
 // ── RUN CODE ──
-function runCode() {
+async function runCode() {
   const code = getEditorValue();
   const out = document.getElementById('console-output');
   out.innerHTML = '';
@@ -348,18 +348,17 @@ function runCode() {
   };
   addLine('▶  Running...', 'console-info');
 
-  setTimeout(() => {
-    const p = PROBLEMS[state.problemId];
+  const p = PROBLEMS[state.problemId];
 
-    if (state.lang === 'javascript') {
-      runJavaScriptTests(code, p, addLine);
-    } else if (state.lang === 'python') {
-      runPythonSimulation(code, p, addLine);
-    } else {
-      addLine('⚠  C++ execution not available in browser. Copy your code to a local compiler to test.', 'console-warn');
-    }
+  if (state.lang === 'javascript') {
+    setTimeout(() => { runJavaScriptTests(code, p, addLine); gainXP(10, 'run'); }, 400);
+  } else if (state.lang === 'python') {
+    await runPythonSimulation(code, p, addLine);
     gainXP(10, 'run');
-  }, 400);
+  } else {
+    addLine('⚠  C++ execution not available in browser. Copy your code to a local compiler to test.', 'console-warn');
+    gainXP(10, 'run');
+  }
 }
 
 function runJavaScriptTests(code, problem, addLine) {
@@ -438,8 +437,29 @@ function runJavaScriptTests(code, problem, addLine) {
   }
 }
 
-function runPythonSimulation(code, problem, addLine) {
-  // Check for obvious unimplemented code
+// ── PYODIDE — Real Python Execution ──
+let _pyodide = null;
+let _pyodideLoading = false;
+let _pyodideReady = false;
+
+async function getPyodide() {
+  if (_pyodideReady) return _pyodide;
+  if (_pyodideLoading) {
+    // Wait for the in-progress load
+    await new Promise(res => {
+      const check = setInterval(() => { if (_pyodideReady) { clearInterval(check); res(); } }, 100);
+    });
+    return _pyodide;
+  }
+  _pyodideLoading = true;
+  _pyodide = await loadPyodide();
+  _pyodideReady = true;
+  _pyodideLoading = false;
+  return _pyodide;
+}
+
+async function runPythonSimulation(code, problem, addLine) {
+  // ── Quick structural checks before we spin up Pyodide ──
   const lines = code.split('\n').filter(l => l.trim() && !l.trim().startsWith('#'));
   const hasPass = lines.some(l => l.trim() === 'pass');
   const tooShort = lines.length < 4;
@@ -449,7 +469,6 @@ function runPythonSimulation(code, problem, addLine) {
     return;
   }
 
-  // Check for common Python errors using our linter
   lintCode(code);
   if (state.errors.some(e => e.type === 'error')) {
     addLine('✗  Errors detected in your code:', 'console-error');
@@ -459,30 +478,129 @@ function runPythonSimulation(code, problem, addLine) {
     return;
   }
 
-  // Python can't run in browser — give honest feedback
-  addLine('📝  Python code analysis:', 'console-info');
+  // ── Load Pyodide (first time takes ~3 s; cached after) ──
+  if (!_pyodideReady) {
+    addLine('⏳  Loading Python runtime… (first run takes a few seconds)', 'console-info');
+  }
 
-  // Check structure
-  const hasDef = /def\s+\w+/.test(code);
-  const hasReturn = /return\s/.test(code);
-  const hasLoop = /for\s|while\s/.test(code);
-  const hasCondition = /if\s/.test(code);
-  const hasPrint = /print\s*\(/.test(code);
+  let pyodide;
+  try {
+    pyodide = await getPyodide();
+  } catch (err) {
+    addLine('✗  Failed to load Python runtime: ' + err.message, 'console-error');
+    addLine('💡  Check your internet connection and try again.', 'console-info');
+    return;
+  }
 
-  if (hasDef) addLine('  ✓ Function defined', 'console-success');
-  else addLine('  ✗ No function definition found', 'console-error');
+  // ── Helper: run a snippet and capture stdout/stderr ──
+  async function runSnippet(snippet) {
+    const setup = `
+import sys, io
+_stdout = io.StringIO()
+_stderr = io.StringIO()
+sys.stdout = _stdout
+sys.stderr = _stderr
+try:
+${snippet.split('\n').map(l => '    ' + l).join('\n')}
+except Exception as _e:
+    sys.stderr.write(str(_e))
+finally:
+    sys.stdout = sys.__stdout__
+    sys.stderr = sys.__stderr__
+`;
+    await pyodide.runPythonAsync(setup);
+    const stdout = pyodide.runPython('_stdout.getvalue()');
+    const stderr = pyodide.runPython('_stderr.getvalue()');
+    return { stdout, stderr };
+  }
 
-  if (hasReturn) addLine('  ✓ Returns a value', 'console-success');
-  else addLine('  ⚠ No return statement — function returns None', 'console-warn');
+  // ── If problem has test cases, run them ──
+  if (problem.testCases && problem.testCases.length > 0) {
+    addLine('📝  Running Python test cases…', 'console-info');
+    let passed = 0;
+    const total = problem.testCases.length;
 
-  if (hasLoop) addLine('  ✓ Uses iteration', 'console-info');
-  if (hasCondition) addLine('  ✓ Has conditional logic', 'console-info');
+    for (let i = 0; i < total; i++) {
+      const tc = problem.testCases[i];
+      // Build Python test snippet:
+      //   user code + a call that prints the result
+      // tc.call is a JS expression like "twoSum([2,7,11,15], 9)"
+      // We need to convert it to a Python call.
+      // tc.call is stored in JS format: 'return fnName(args);'
+      // Strip 'return ' and trailing ';' to get a Python expression
+      const pyCall = tc.call
+        .replace(/^return\s+/i, '')
+        .replace(/;\s*$/, '')
+        .replace(/true/g, 'True')
+        .replace(/false/g, 'False')
+        .replace(/null/g, 'None');
 
-  addLine('', '');
-  addLine('⚠  Python cannot run in the browser. Copy your code to a local Python interpreter or use an online judge to verify results.', 'console-warn');
+      const snippet = `${code}\n__result = ${pyCall}\nprint(repr(__result))`;
+      try {
+        const { stdout, stderr } = await runSnippet(snippet);
+        if (stderr) {
+          addLine(`  ✗ Test ${i+1}: Runtime Error — ${stderr.trim()}`, 'console-error');
+          continue;
+        }
+        // Parse the Python repr output
+        const rawOut = stdout.trim();
+        // Compare: convert expected (JS) to a canonical string for comparison
+        const expectedStr = JSON.stringify(tc.expected);
+        // Normalise Python repr to JSON-comparable form
+        const normOut = rawOut
+          .replace(/True/g, 'true').replace(/False/g, 'false')
+          .replace(/None/g, 'null').replace(/'/g, '"');
+        let got;
+        try { got = JSON.parse(normOut); } catch { got = rawOut; }
+        const ok = deepEqual(got, tc.expected);
+        if (ok) {
+          passed++;
+          addLine(`  ✓ Test ${i+1}: ${tc.label || pyCall.trim()} → ${rawOut}`, 'console-success');
+        } else {
+          addLine(`  ✗ Test ${i+1}: ${tc.label || pyCall.trim()}`, 'console-error');
+          addLine(`    Expected: ${expectedStr}`, 'console-error');
+          addLine(`    Got:      ${rawOut}`, 'console-error');
+        }
+      } catch (err) {
+        addLine(`  ✗ Test ${i+1}: Error — ${err.message}`, 'console-error');
+      }
+    }
 
-  if (hasDef && hasReturn && !hasPass) {
-    addLine('💡  Your code structure looks reasonable. Test it locally!', 'console-info');
+    state.session.testsRun += total;
+    state.session.testsPassed += passed;
+
+    addLine('', '');
+    if (passed === total) {
+      addLine(`🎉  All ${total} tests passed!`, 'console-success');
+      if (state.refactorLevel === 2 && !state.session.level2Solved) {
+        onLevel2Solved();
+      } else if (!state.solved) {
+        state.solved = true;
+        state.session.problemsSolved++;
+        setTimeout(showRefactorChallenge, 1500);
+      }
+    } else {
+      addLine(`⚠  ${passed}/${total} tests passed. Keep going!`, 'console-warn');
+    }
+    return;
+  }
+
+  // ── No test cases: just execute the code and show stdout ──
+  addLine('▶  Executing Python…', 'console-info');
+  try {
+    const { stdout, stderr } = await runSnippet(code);
+    if (stderr) {
+      stderr.trim().split('\n').forEach(l => addLine('  ' + l, 'console-error'));
+    }
+    if (stdout) {
+      stdout.trim().split('\n').forEach(l => addLine('  ' + l, 'console-info'));
+      addLine('', '');
+      addLine('⚠  No test cases for this problem. Output shown above — verify manually.', 'console-warn');
+    } else if (!stderr) {
+      addLine('⚠  No output produced. Make sure your function returns or prints a value.', 'console-warn');
+    }
+  } catch (err) {
+    addLine('✗  Runtime Error: ' + err.message, 'console-error');
   }
 }
 
