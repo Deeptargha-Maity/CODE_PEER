@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>CodePeer — Socratic Coding Mentor</title>
+  <meta name="description" content="CodePeer is an AI-powered Socratic coding mentor that guides students to solutions through questions and reasoning, not direct answers." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+
+<!-- ───── TOP NAV ───── -->
+<header class="topbar" id="topbar">
+  <div class="topbar-left">
+    <div class="logo">
+      <div class="logo-icon">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
+          <path d="M9.663 17h4.673M12 3v1m6.364 1.636-.707.707M21 12h-1M4 12H3m3.343-5.657-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+      </div>
+      <span class="logo-text">Code<span class="logo-accent">Peer</span></span>
+    </div>
+    <div class="problem-badge" id="problem-badge">
+      <span class="problem-dot"></span>
+      <span id="problem-title">Two Sum</span>
+    </div>
+  </div>
+
+  <div class="topbar-center">
+    <div class="lang-selector">
+      <button class="lang-btn active" data-lang="python" id="btn-python">Python</button>
+      <button class="lang-btn" data-lang="javascript" id="btn-javascript">JavaScript</button>
+      <button class="lang-btn" data-lang="cpp" id="btn-cpp">C++</button>
+    </div>
+    <div class="problem-switcher">
+      <button class="prob-dropdown-btn" id="prob-dropdown-btn" onclick="toggleProblemDropdown()">
+        <span id="prob-dropdown-label">Two Sum</span>
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none"><path d="M6 9l6 6 6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </button>
+      <div class="prob-dropdown hidden" id="prob-dropdown"></div>
+    </div>
+  </div>
+
+  <div class="topbar-right">
+    <div class="xp-pill">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" fill="#f59e0b" stroke="#f59e0b" stroke-width="1.5"/></svg>
+      <span id="xp-display">0 XP</span>
+    </div>
+    <button class="icon-btn" id="btn-duck" title="Rubber Duck Mode">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M9 11l3-3m0 0l3 3m-3-3v8m-5-5H5a2 2 0 01-2-2V7a2 2 0 012-2h3m11 4h-3a2 2 0 01-2-2V5a2 2 0 012-2h3a2 2 0 012 2v2a2 2 0 01-2 2z" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    </button>
+    <button class="icon-btn" id="btn-skill" title="Skill Tree">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    </button>
+    <div class="streak-badge" title="Current streak">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M17.657 18.657A8 8 0 016.343 7.343S7 9 9 10c0-2 .5-5 2.986-7C14 5 16.09 5.777 17.656 7.343A7.975 7.975 0 0120 13a7.975 7.975 0 01-2.343 5.657z" fill="#ef4444" stroke="#ef4444" stroke-width="1.5"/></svg>
+      <span id="streak-display">3</span>
+    </div>
+  </div>
+</header>
+
+<!-- ───── MAIN LAYOUT ───── -->
+<main class="main-layout" id="main-layout">
+
+  <!-- LEFT: Problem Panel -->
+  <aside class="panel panel-problem" id="panel-problem">
+    <div class="panel-header">
+      <span class="panel-title">Problem</span>
+      <div class="difficulty-tag" id="difficulty-tag">Medium</div>
+    </div>
+    <div class="panel-body problem-body" id="problem-body">
+      <!-- injected by JS -->
+    </div>
+    <div class="hint-system" id="hint-system">
+      <div class="hint-title">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none"><path d="M9.663 17h4.673M12 3v1m6.364 1.636-.707.707M21 12h-1M4 12H3m3.343-5.657-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        Hint System
+      </div>
+      <div class="hint-tiers">
+        <button class="hint-btn tier-nudge" id="btn-hint-nudge" onclick="requestHint('nudge')">
+          <span class="hint-tier-label">Nudge</span>
+          <span class="hint-cost">Free</span>
+        </button>
+        <button class="hint-btn tier-clue" id="btn-hint-clue" onclick="requestHintClue()">
+          <span class="hint-tier-label">Clue</span>
+          <span class="hint-cost">-5 XP</span>
+          <span class="duck-lock-icon" id="duck-lock-icon" title="Speak in Duck Mode to unlock">🔒</span>
+        </button>
+        <button class="hint-btn tier-answer" id="btn-hint-answer" onclick="requestHint('answer')">
+          <span class="hint-tier-label">Answer</span>
+          <span class="hint-cost">-20 XP</span>
+        </button>
+      </div>
+      <div class="hint-display" id="hint-display"></div>
+    </div>
+  </aside>
+
+  <!-- CENTER: Editor -->
+  <section class="panel panel-editor" id="panel-editor">
+    <div class="panel-header">
+      <span class="panel-title">Editor</span>
+      <div class="editor-controls">
+        <div class="analysis-status" id="analysis-status">
+          <span class="status-dot idle"></span>
+          <span id="status-text">Ready</span>
+        </div>
+        <button class="run-btn" id="btn-run" onclick="runCode()">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M5 3l14 9-14 9V3z" fill="currentColor"/></svg>
+          Run
+        </button>
+      </div>
+    </div>
+    <div id="monaco-editor" class="monaco-container"></div>
+    <div class="console-area" id="console-area">
+      <div class="console-header">
+        <span>Console</span>
+        <button class="clear-btn" onclick="clearConsole()">Clear</button>
+      </div>
+      <div class="console-output" id="console-output">
+        <span class="console-placeholder">Run your code to see output...</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- RIGHT: AI Mentor Panel -->
+  <aside class="panel panel-mentor" id="panel-mentor">
+    <div class="panel-header">
+      <span class="panel-title">
+        <span class="mentor-dot"></span>
+        Socratic Mentor
+      </span>
+      <button class="icon-btn-sm" id="btn-viz" onclick="toggleViz()" title="Toggle Flowchart">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M7 16V4m0 0L3 8m4-4l4 4M17 8v12m0 0l4-4m-4 4l-4-4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </button>
+    </div>
+
+    <!-- Chat / Questions -->
+    <div class="mentor-chat" id="mentor-chat">
+      <div class="mentor-welcome">
+        <div class="mentor-avatar">
+          <svg width="28" height="28" viewBox="0 0 24 24" fill="none"><path d="M9.663 17h4.673M12 3v1m6.364 1.636-.707.707M21 12h-1M4 12H3m3.343-5.657-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </div>
+        <p class="welcome-text">Hello! I'm your Socratic mentor. Start coding and I'll guide you with questions — not answers. 🧠</p>
+      </div>
+    </div>
+
+    <!-- Viz Panel -->
+    <div class="viz-panel hidden" id="viz-panel">
+      <div class="viz-header">Logic Flowchart</div>
+      <div id="mermaid-output" class="mermaid-output">
+        <p class="viz-placeholder">Write some code to generate a flowchart...</p>
+      </div>
+    </div>
+
+    <!-- Refactor / Time-Travel Challenge -->
+    <div class="refactor-panel hidden" id="refactor-panel">
+      <div class="refactor-header">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none"><path d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        <span id="refactor-title">⏳ Time-Travel Challenge — Level 2</span>
+      </div>
+      <div class="complexity-badge" id="refactor-badge"></div>
+      <p id="refactor-text" class="refactor-text"></p>
+      <div class="refactor-actions">
+        <button class="accept-btn" onclick="acceptRefactor()">⚡ Accept Level 2</button>
+        <button class="dismiss-btn" onclick="document.getElementById('refactor-panel').classList.add('hidden')">Later</button>
+      </div>
+    </div>
+  </aside>
+</main>
+
+<!-- ───── RUBBER DUCK MODAL ───── -->
+<div class="modal-overlay hidden" id="duck-modal">
+  <div class="modal-card">
+    <div class="modal-header">
+      <div class="duck-icon">🦆</div>
+      <h2>Rubber Duck Mode</h2>
+      <p>Explain your approach out loud. Score high enough to <strong>unlock the Clue hint</strong>.</p>
+    </div>
+    <div id="duck-gate-status" class="duck-gate-status"></div>
+    <div class="duck-body">
+      <div class="mic-visual" id="mic-visual">
+        <div class="mic-ring ring1"></div>
+        <div class="mic-ring ring2"></div>
+        <div class="mic-ring ring3"></div>
+        <div class="mic-icon">
+          <svg width="30" height="30" viewBox="0 0 24 24" fill="none"><path d="M12 1a3 3 0 00-3 3v8a3 3 0 006 0V4a3 3 0 00-3-3z" fill="currentColor"/><path d="M19 10v2a7 7 0 01-14 0v-2M12 19v4m-4 0h8" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </div>
+      </div>
+      <div class="transcript-box" id="transcript-box">
+        <p class="transcript-placeholder">Your speech will appear here...<br><small>💡 Tip: Mention data structures, algorithm patterns, and time complexity to score higher.</small></p>
+      </div>
+      <div class="duck-controls">
+        <button class="duck-btn" id="btn-mic" onclick="toggleRecording()">🎙 Start Speaking</button>
+        <button class="duck-btn-secondary" onclick="closeDuckModal()">Cancel</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ───── SKILL TREE MODAL ───── -->
+<div class="modal-overlay hidden" id="skill-modal">
+  <div class="modal-card modal-wide">
+    <div class="modal-close" onclick="closeSkillModal()">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M6 18L18 6M6 6l12 12" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+    </div>
+    <div class="modal-header">
+      <h2>🌳 Skill Tree Dashboard</h2>
+      <p>Your RPG-style mastery map across key DSA competencies</p>
+    </div>
+    <!-- Session Summary -->
+    <div id="session-summary" class="session-summary"></div>
+    <!-- Skill Cards -->
+    <div class="skill-grid" id="skill-grid"></div>
+    <!-- Achievements -->
+    <div class="achievements-section">
+      <h3 class="achievements-title">🏆 Achievements</h3>
+      <div class="achievements-list" id="achievements-list"></div>
+    </div>
+  </div>
+</div>
+
+<!-- ───── HINT UNLOCK TOAST ───── -->
+<div class="toast hidden" id="toast">
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+  <span id="toast-text"></span>
+</div>
+
+<!-- CodeMirror 6 — locally bundled (no CDN needed) -->
+<script src="editor-bundle.js"></script>
+<!-- Mermaid -->
+<script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+<script src="data.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
